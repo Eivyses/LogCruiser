@@ -20,15 +20,6 @@ import eivydas.senkus.logcruiser.index.OffsetLineReader
 
 private val LINE_NUMBER_WIDTH = 100.dp
 
-private val darkScrollbarStyle =
-    ScrollbarStyle(
-        minimalHeight = 16.dp,
-        thickness = 12.dp,
-        shape = RoundedCornerShape(4.dp),
-        hoverDurationMillis = 300,
-        unhoverColor = Color.White.copy(alpha = 0.12f),
-        hoverColor = Color.White.copy(alpha = 0.50f),
-    )
 
 @Composable
 fun LogViewport(
@@ -56,7 +47,7 @@ fun LogViewport(
 
     VerticalScrollbar(
         adapter = rememberScrollbarAdapter(listState),
-        style = darkScrollbarStyle,
+        style = scrollbarStyle(),
         modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
     )
   }
@@ -96,6 +87,21 @@ private fun LogLine(
         softWrap = false,
     )
   }
+}
+
+@Composable
+private fun scrollbarStyle(): ScrollbarStyle {
+  val background = MaterialTheme.colorScheme.background
+  val isDark = (background.red + background.green + background.blue) / 3f < 0.5f
+  val color = if (isDark) Color.White else Color.Black
+  return ScrollbarStyle(
+      minimalHeight = 16.dp,
+      thickness = 12.dp,
+      shape = RoundedCornerShape(4.dp),
+      hoverDurationMillis = 300,
+      unhoverColor = color.copy(alpha = 0.12f),
+      hoverColor = color.copy(alpha = 0.50f),
+  )
 }
 
 @Preview

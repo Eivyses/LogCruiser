@@ -26,55 +26,67 @@ private sealed class ViewerState {
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
   var state by remember { mutableStateOf<ViewerState>(ViewerState.Idle) }
+  var isDarkTheme by remember { mutableStateOf(true) }
   val scope = rememberCoroutineScope()
-  MaterialTheme(colorScheme = darkColorScheme()) {
-    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
-      when (val currentState = state) {
-        ViewerState.Idle -> {
-          IdleScreen(
-              onOpenFile = {
-                val file = showOpenFileDialog()
-                if (file != null) {
-                  scope.launch {
-                    val index = LogFileIndex(file)
-                    val progressJob = scope.launch {
-                      index.progress.collect { progress ->
-                        state = ViewerState.Indexing(progress)
+
+  val colorScheme = if (isDarkTheme) darkColorScheme() else lightColorScheme()
+
+  MaterialTheme(colorScheme = colorScheme) {
+    Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
+      Box(modifier = Modifier.fillMaxSize()) {
+        Column {
+          TextButton(
+              onClick = { isDarkTheme = !isDarkTheme },
+              modifier = Modifier.align(Alignment.End).padding(horizontal = 4.dp),
+          ) {
+            Text(if (isDarkTheme) "Light" else "Dark")
+          }
+          when (val currentState = state) {
+            ViewerState.Idle -> {
+              IdleScreen(
+                  onOpenFile = {
+                    val file = showOpenFileDialog()
+                    if (file != null) {
+                      scope.launch {
+                        val index = LogFileIndex(file)
+                        val progressJob = scope.launch {
+                          index.progress.collect { progress ->
+                            state = ViewerState.Indexing(progress)
+                          }
+                        }
+                        index.build()
+                        progressJob.cancel()
+                        state = ViewerState.Ready(index, OffsetLineReader(file))
                       }
                     }
-                    index.build()
-                    progressJob.cancel()
-                    state = ViewerState.Ready(index, OffsetLineReader(file))
-                  }
-                }
-              },
-              modifier = modifier,
-          )
-        }
+                  },
+                  modifier = Modifier.fillMaxSize(),
+              )
+            }
 
-        is ViewerState.Indexing -> {
-          IndexingScreen(
-              progress = currentState.progress,
-              onCancel = { scope.cancel() },
-              modifier = modifier,
-          )
-        }
+            is ViewerState.Indexing -> {
+              IndexingScreen(
+                  progress = currentState.progress,
+                  onCancel = { scope.cancel() },
+                  modifier = Modifier.fillMaxSize(),
+              )
+            }
 
-        is ViewerState.Ready -> {
-          val index = currentState.index
-          val reader = currentState.reader
+            is ViewerState.Ready -> {
+              val index = currentState.index
+              val reader = currentState.reader
 
-          DisposableEffect(reader) {
-            onDispose {
-              reader.close()
+              DisposableEffect(reader) {
+                onDispose { reader.close() }
+              }
+
+              LogViewport(
+                  index = index,
+                  reader = reader,
+                  modifier = Modifier.fillMaxSize(),
+              )
             }
           }
-
-          LogViewport(
-              index = index,
-              reader = reader,
-              modifier = modifier.fillMaxSize(),
-          )
         }
       }
     }
@@ -87,7 +99,7 @@ internal fun IdleScreen(
     modifier: Modifier = Modifier,
 ) {
   Column(
-      modifier = modifier.fillMaxSize(),
+      modifier = modifier,
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
@@ -104,7 +116,7 @@ internal fun IndexingScreen(
     modifier: Modifier = Modifier,
 ) {
   Column(
-      modifier = modifier.fillMaxSize().padding(24.dp),
+      modifier = modifier.padding(24.dp),
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
