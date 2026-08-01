@@ -135,23 +135,19 @@ internal fun IndexingScreen(
 @Preview
 @Composable
 internal fun PreviewIdleScreen() {
-  MaterialTheme(colorScheme = darkColorScheme()) {
-    Surface(color = MaterialTheme.colorScheme.background) {
-      IdleScreen(onOpenFile = {})
-    }
+  LogCruiserPreview {
+    IdleScreen(onOpenFile = {})
   }
 }
 
 @Preview
 @Composable
 internal fun PreviewIndexingScreen() {
-  MaterialTheme(colorScheme = darkColorScheme()) {
-    Surface(color = MaterialTheme.colorScheme.background) {
-      IndexingScreen(
-          progress = IndexingProgress(50000000, 120000000, false),
-          onCancel = {},
-      )
-    }
+  LogCruiserPreview {
+    IndexingScreen(
+        progress = IndexingProgress(50000000, 120000000, false),
+        onCancel = {},
+    )
   }
 }
 
