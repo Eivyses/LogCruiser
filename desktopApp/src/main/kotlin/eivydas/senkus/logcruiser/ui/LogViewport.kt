@@ -18,8 +18,7 @@ import androidx.compose.ui.unit.dp
 import eivydas.senkus.logcruiser.index.LogFileIndex
 import eivydas.senkus.logcruiser.index.OffsetLineReader
 
-private val LINE_NUMBER_WIDTH = 100.dp
-
+private val LINE_NUMBER_WIDTH = 90.dp
 
 @Composable
 fun LogViewport(
@@ -30,26 +29,30 @@ fun LogViewport(
   val horizontalScrollState = rememberScrollState()
   val listState = rememberLazyListState()
 
-  Box(modifier = modifier.fillMaxSize()) {
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-    ) {
-      items(count = index.lineCount, key = { it }) { lineIdx ->
-        LogLine(
-            lineNumber = lineIdx + 1,
-            lineText = reader.readLine(index.offsetsArray, lineIdx),
-            horizontalScrollState = horizontalScrollState,
-            modifier = Modifier.fillMaxWidth(),
-        )
+  Row(modifier = modifier.fillMaxSize()) {
+    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+      LazyColumn(
+          state = listState,
+          modifier = Modifier.fillMaxSize(),
+      ) {
+        items(count = index.lineCount, key = { it }) { lineIdx ->
+          LogLine(
+              lineNumber = lineIdx + 1,
+              lineText = reader.readLine(index.offsetsArray, lineIdx),
+              horizontalScrollState = horizontalScrollState,
+              modifier = Modifier.fillMaxWidth(),
+          )
+        }
       }
     }
 
-    VerticalScrollbar(
-        adapter = rememberScrollbarAdapter(listState),
-        style = scrollbarStyle(),
-        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-    )
+    Box(modifier = Modifier.padding(horizontal = 5.dp).width(16.dp).fillMaxHeight()) {
+      VerticalScrollbar(
+          adapter = rememberScrollbarAdapter(listState),
+          style = scrollbarStyle(),
+          modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+      )
+    }
   }
 }
 
@@ -60,7 +63,7 @@ private fun LogLine(
     horizontalScrollState: ScrollState,
     modifier: Modifier = Modifier,
 ) {
-  Row(modifier = modifier) {
+  Row(modifier = modifier.height(IntrinsicSize.Min)) {
     Box(
         modifier = Modifier.requiredWidth(LINE_NUMBER_WIDTH).padding(start = 4.dp, end = 12.dp),
         contentAlignment = Alignment.CenterEnd,
