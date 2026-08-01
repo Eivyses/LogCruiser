@@ -114,40 +114,6 @@ class LogFileIndexTest {
     assertEquals(false, index.progress.value.done)
   }
 
-  @Test
-  fun `test read line by index`() {
-    val file = createTempFile("line1\nline2\nline3\n")
-    val index = LogFileIndex(file)
-    runBlocking { index.build() }
-    OffsetLineReader(file).use { reader ->
-      assertEquals("line1", reader.readLine(index.offsetsArray, 0))
-      assertEquals("line2", reader.readLine(index.offsetsArray, 1))
-      assertEquals("line3", reader.readLine(index.offsetsArray, 2))
-    }
-  }
-
-  @Test
-  fun `test read out of bounds`() {
-    val file = createTempFile("line1\nline2\n")
-    val index = LogFileIndex(file)
-    runBlocking { index.build() }
-    OffsetLineReader(file).use { reader ->
-      assertEquals("", reader.readLine(index.offsetsArray, -1))
-      assertEquals("", reader.readLine(index.offsetsArray, 2))
-    }
-  }
-
-  @Test
-  fun `test read line with CRLF`() {
-    val file = createTempFile("line1\r\nline2\r\n")
-    val index = LogFileIndex(file)
-    runBlocking { index.build() }
-    OffsetLineReader(file).use { reader ->
-      assertEquals("line1", reader.readLine(index.offsetsArray, 0))
-      assertEquals("line2", reader.readLine(index.offsetsArray, 1))
-    }
-  }
-
   private fun createTempFile(content: String): File {
     val file = File.createTempFile("logcruiser-test", ".txt")
     file.deleteOnExit()

@@ -33,12 +33,13 @@ class OffsetLineReader(file: File) : Closeable {
     buffer.flip()
     var text = StandardCharsets.UTF_8.decode(buffer).toString()
 
-    // strip trailing newlines
-    if (text.endsWith("\r\n")) {
-      text = text.substring(0, text.length - 2)
-    } else if (text.endsWith("\n")) {
-      text = text.substring(0, text.length - 1)
-    }
+    text =
+        when {
+          text.endsWith("\r\n") -> text.dropLast(2)
+          text.endsWith("\n") -> text.dropLast(1)
+          text.endsWith("\r") -> text.dropLast(1)
+          else -> text
+        }
 
     return text
   }

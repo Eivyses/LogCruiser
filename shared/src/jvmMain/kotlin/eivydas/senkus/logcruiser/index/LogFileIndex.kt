@@ -34,12 +34,11 @@ class LogFileIndex(private val file: File) {
       }
 
       // allocateDirect allocates memory outside the JVM heap skipping intermediate heap
-      // allocations.
+      // allocations. Performance difference is probably negligible but let's keep it.
       val buffer = ByteBuffer.allocateDirect(64 * 1024)
       var filePosition: Long = 0
 
       FileChannel.open(file.toPath(), StandardOpenOption.READ).use { channel ->
-        channel.position(0) // make sure we're at start
         while (channel.read(buffer) > 0) {
           buffer.flip()
           val limit = buffer.limit()
@@ -48,8 +47,7 @@ class LogFileIndex(private val file: File) {
             // Newline byte check ('\n' = 0x0A)
             if (buffer.get(i) == 0x0A.toByte()) {
               val nextLineStart = filePosition + i + 1
-              // skip offset if it's last symbol in file
-              if (nextLineStart < channel.size()) {
+              if (nextLineStart < totalBytes) {
                 fileOffsets.add(nextLineStart.toInt())
               }
             }
