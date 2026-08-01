@@ -7,14 +7,15 @@ import androidx.compose.ui.window.application
 import eivydas.senkus.logcruiser.ui.MainScreen
 
 fun main() = application {
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "LogCruiser",
-        state = WindowState(
-            width = 1200.dp,
-            height = 800.dp,
-        ),
-    ) {
-        MainScreen()
-    }
+  Window(
+      onCloseRequest = ::exitApplication,
+      title = "LogCruiser",
+      state =
+          WindowState(
+              width = 1400.dp,
+              height = 1000.dp,
+          ),
+  ) {
+    MainScreen()
+  }
 }

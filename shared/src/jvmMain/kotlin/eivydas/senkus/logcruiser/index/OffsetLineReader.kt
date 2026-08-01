@@ -2,10 +2,14 @@ package eivydas.senkus.logcruiser.index
 
 import java.io.Closeable
 import java.io.File
-import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.charset.StandardCharsets
+import java.nio.file.StandardOpenOption
 
 class OffsetLineReader(file: File) : Closeable {
-  private val raf = RandomAccessFile(file, "r")
+  private val channel = FileChannel.open(file.toPath(), StandardOpenOption.READ)
+  private val fileLength = file.length().toInt()
 
   fun readLine(offsets: IntArray, lineIndex: Int): String {
     if (lineIndex < 0 || lineIndex >= offsets.size) {
@@ -14,30 +18,32 @@ class OffsetLineReader(file: File) : Closeable {
 
     val startOffset = offsets[lineIndex]
     val endOffset =
-        if (lineIndex + 1 < offsets.size) offsets[lineIndex + 1] else raf.length().toInt()
+        if (lineIndex + 1 < offsets.size) {
+          offsets[lineIndex + 1]
+        } else {
+          fileLength
+        }
     val length = endOffset - startOffset
     if (length <= 0) {
       return ""
     }
 
-    val bytes = ByteArray(length)
-    raf.seek(startOffset.toLong())
-    val count = raf.read(bytes)
-    if (count <= 0) {
-      return ""
+    val buffer = ByteBuffer.allocate(length)
+    channel.read(buffer, startOffset.toLong())
+    buffer.flip()
+    var text = StandardCharsets.UTF_8.decode(buffer).toString()
+
+    // strip trailing newlines
+    if (text.endsWith("\r\n")) {
+      text = text.substring(0, text.length - 2)
+    } else if (text.endsWith("\n")) {
+      text = text.substring(0, text.length - 1)
     }
 
-    var end = count
-    while (
-        end > 0 && (bytes[end - 1] == '\n'.code.toByte() || bytes[end - 1] == '\r'.code.toByte())
-    ) {
-      end--
-    }
-
-    return String(bytes, 0, end, Charsets.UTF_8)
+    return text
   }
 
   override fun close() {
-    raf.close()
+    channel.close()
   }
 }

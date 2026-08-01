@@ -1,14 +1,15 @@
 package eivydas.senkus.logcruiser.index
 
-import java.io.File
-import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.StandardOpenOption
 
 data class IndexingProgress(val bytesRead: Long, val totalBytes: Long, val done: Boolean)
 
@@ -27,35 +28,41 @@ class LogFileIndex(private val file: File) {
   suspend fun build() {
     withContext(Dispatchers.IO) {
       val totalBytes = file.length()
-      val lineStarts = IntArrayList(initialCapacity = 1024)
+      val fileOffsets = IntArrayList(initialCapacity = 1024)
       if (totalBytes > 0) {
-        lineStarts.add(0)
+        fileOffsets.add(0)
       }
 
-      val buffer = ByteArray(64 * 1024)
-      var bytesRead: Long = 0
+      // allocateDirect allocates memory outside the JVM heap skipping intermediate heap
+      // allocations.
+      val buffer = ByteBuffer.allocateDirect(64 * 1024)
+      var filePosition: Long = 0
 
-      file.inputStream().use { stream: InputStream ->
-        while (isActive) {
-          val read = stream.read(buffer)
-          if (read <= 0) break
+      FileChannel.open(file.toPath(), StandardOpenOption.READ).use { channel ->
+        channel.position(0) // make sure we're at start
+        while (channel.read(buffer) > 0) {
+          buffer.flip()
+          val limit = buffer.limit()
 
-          for (i in 0 until read) {
-            if (buffer[i] == '\n'.code.toByte()) {
-              val nextLineStart = bytesRead + i + 1
-              if (nextLineStart < totalBytes) {
-                lineStarts.add(nextLineStart.toInt())
+          for (i in 0 until limit) {
+            // Newline byte check ('\n' = 0x0A)
+            if (buffer.get(i) == 0x0A.toByte()) {
+              val nextLineStart = filePosition + i + 1
+              // skip offset if it's last symbol in file
+              if (nextLineStart < channel.size()) {
+                fileOffsets.add(nextLineStart.toInt())
               }
             }
           }
 
-          bytesRead += read
-          _progress.value = IndexingProgress(bytesRead, totalBytes, done = false)
+          filePosition += limit
+          buffer.clear()
+          _progress.value = IndexingProgress(filePosition, totalBytes, done = false)
           ensureActive()
         }
       }
 
-      offsets = lineStarts.toArray()
+      offsets = fileOffsets.toArray()
       _progress.value = IndexingProgress(totalBytes, totalBytes, done = true)
     }
   }
