@@ -182,9 +182,19 @@ slice. Beneficial committable endpoints, not forced gates.
 - Implemented: `LogFileIndex` (shared/jvmMain/index), `OffsetLineReader` (shared/jvmMain/index),
   `LogViewport` (desktopApp/ui), `MainScreen` with file picker + indexing progress (desktopApp/ui),
   `main.kt` wired with 1200×800 window. Unit tests in jvmTest.
-- Decisions: dark theme via `MaterialTheme(colorScheme = darkColorScheme())` + `Surface` wrapper;
-  line-number column 100dp `requiredWidth` with Box alignment; custom `ScrollbarStyle`
-  (white-on-dark, Compose Desktop default was black-on-black); `@Preview` for all screen states.
+- Decisions:
+  - `LogFileIndex`: `FileChannel` + `ByteBuffer.allocateDirect()` (off-heap, no GC churn);
+    `totalBytes` cached (no `fstat` per newline).
+  - Layout: `Row { content(weight=1) | scrollbar(26dp fixed) }` instead of overlay.
+  - `OffsetLineReader`: `FileChannel.read(buffer, position)` (atomic, thread-safe vs old
+    `seek`+`read`); `StandardCharsets.UTF_8.decode()`; strips trailing `\r\n`/`\n`/`\r`.
+  - Dedicated `OffsetLineReaderTest.kt` (8 tests: basic, CRLF, empty, standalone `\r`,
+    UTF-8 multibyte, long lines, OOB, internal `\r` preserved vs trailing stripped).
+  - Line-number column 90dp `requiredWidth` with Box `CenterEnd` alignment.
+  - Scrollbar: 12dp thickness, auto-adapts color (white/black) from active `MaterialTheme`.
+  - Light/Dark theme toggle button (top-right corner).
+  - `LogCruiserPreview` wrapper composable; `@Preview` for `PreviewLogLines`,
+    `PreviewIdleScreen`, `PreviewIndexingScreen`.
 - Shared module cleaned of KMP wizard boilerplate (App, Greeting, Platform, template resources).
 
 ### Iteration I2 — ANSI rendering  *(→ Phase 0)*
@@ -325,4 +335,8 @@ desktopApp/.../logcruiser/
 
 ## Implementation log
 
+### 2026-07-31 — I1 complete
+- Core: `LogFileIndex`, `OffsetLineReader`, 10+ unit tests
+- UI: `LogViewport`, `MainScreen`, file picker, indexing progress, dark/light toggle
+- Polishing: scrollbar, previews, theme wrapper, template cleanup
 See iteration markers above for status. Next up: **Iteration I2 — ANSI rendering**.
