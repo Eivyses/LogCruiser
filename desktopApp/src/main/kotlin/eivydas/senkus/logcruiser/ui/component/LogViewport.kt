@@ -1,4 +1,4 @@
-package eivydas.senkus.logcruiser.ui
+package eivydas.senkus.logcruiser.ui.component
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -17,6 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eivydas.senkus.logcruiser.index.LogFileIndex
 import eivydas.senkus.logcruiser.index.OffsetLineReader
+import eivydas.senkus.logcruiser.ui.LogCruiserPreview
 
 private val LINE_NUMBER_WIDTH = 90.dp
 
@@ -107,34 +108,46 @@ private fun scrollbarStyle(): ScrollbarStyle {
   )
 }
 
+@Preview(name = "Dark Mode")
+@Preview(name = "Light Mode")
+@Composable
+private fun PreviewLogLinesLight() {
+  LogCruiserPreview(isDark = false) {
+    PreviewLogLines()
+  }
+}
+
 @Preview
+@Composable
+private fun PreviewLogLinesDark() {
+  LogCruiserPreview(isDark = true) {
+    PreviewLogLines()
+  }
+}
+
 @Composable
 private fun PreviewLogLines() {
   val horizontalScrollState = rememberScrollState()
-
-  LogCruiserPreview {
-    Column(Modifier.verticalScroll(state = horizontalScrollState)) {
-      LogLine(
-          lineNumber = 1,
-          lineText = "[2024-01-15 10:30:45] [INFO] Application started successfully",
-          horizontalScrollState = horizontalScrollState,
-      )
-      LogLine(
-          lineNumber = 2,
-          lineText =
-              "[2024-01-15 10:30:46] [DEBUG] Loading configuration from /etc/app/config.yaml",
-          horizontalScrollState = horizontalScrollState,
-      )
-      LogLine(
-          lineNumber = 3,
-          lineText = "[2024-01-15 10:30:47] [WARN] Connection pool usage is at 75%",
-          horizontalScrollState = horizontalScrollState,
-      )
-      LogLine(
-          lineNumber = 1234567,
-          lineText = "[2024-01-15 10:30:48] [ERROR] Failed to process request: timeout after 30s",
-          horizontalScrollState = horizontalScrollState,
-      )
-    }
+  Column(Modifier.verticalScroll(state = horizontalScrollState)) {
+    LogLine(
+        lineNumber = 1,
+        lineText = "[2024-01-15 10:30:45] [INFO] Application started successfully",
+        horizontalScrollState = horizontalScrollState,
+    )
+    LogLine(
+        lineNumber = 2,
+        lineText = "[2024-01-15 10:30:46] [DEBUG] Loading configuration from /etc/app/config.yaml",
+        horizontalScrollState = horizontalScrollState,
+    )
+    LogLine(
+        lineNumber = 3,
+        lineText = "[2024-01-15 10:30:47] [WARN] Connection pool usage is at 75%",
+        horizontalScrollState = horizontalScrollState,
+    )
+    LogLine(
+        lineNumber = 1234567,
+        lineText = "[2024-01-15 10:30:48] [ERROR] Failed to process request: timeout after 30s",
+        horizontalScrollState = horizontalScrollState,
+    )
   }
 }

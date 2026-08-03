@@ -4,6 +4,7 @@
 
 Always prioritise MCP plugin over basic commands. If MCP for some reason is unavailable inform the user about it and
 wait for it to be re-enabled. Don't run the project or tests automatically, this will be done by the user in the end.
+Never ever push code yourself, nor commit. User will do it, not you.
 
 ## Coding guidelines
 
