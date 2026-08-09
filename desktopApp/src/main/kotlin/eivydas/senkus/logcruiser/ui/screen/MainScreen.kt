@@ -1,18 +1,13 @@
 package eivydas.senkus.logcruiser.ui.screen
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import eivydas.senkus.logcruiser.index.IndexingProgress
 import eivydas.senkus.logcruiser.index.LogFileIndex
 import eivydas.senkus.logcruiser.index.OffsetLineReader
-import eivydas.senkus.logcruiser.ui.component.LogViewport
-import eivydas.senkus.logcruiser.ui.component.MenuBarRow
-import eivydas.senkus.logcruiser.ui.component.MenuItem
+import eivydas.senkus.logcruiser.ui.component.*
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
@@ -65,6 +60,15 @@ fun MainScreen(
               onClick = { onToggleTheme() },
           ),
       )
+  val filterSidebarItems =
+      listOf(
+          SideBarItem(
+              id = "filters",
+              title = "Filters",
+              icon = { Text("F") },
+              content = { FiltersPanel() },
+          )
+      )
 
   val colorScheme = if (isDarkTheme) darkColorScheme() else lightColorScheme()
 
@@ -75,10 +79,18 @@ fun MainScreen(
             menuItems = menuItems,
         )
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-          Row {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+          Row(modifier = Modifier.fillMaxSize()) {
+            SideBar(
+                side = SideBarSide.Left,
+                items = filterSidebarItems,
+            )
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
               MainWorkArea(state, scope, onOpenFile = openFile)
             }
+            SideBar(
+                side = SideBarSide.Right,
+                items = filterSidebarItems,
+            )
           }
         }
       }
