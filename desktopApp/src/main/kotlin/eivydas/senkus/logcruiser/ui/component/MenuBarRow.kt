@@ -2,7 +2,9 @@ package eivydas.senkus.logcruiser.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
@@ -12,7 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eivydas.senkus.logcruiser.ui.LogCruiserPreview
 
-private val MENU_BAR_HEIGHT = 28.dp
+private val MENU_BAR_HEIGHT = 32.dp
 private val MENU_ITEM_HORIZONTAL_PADDING = 8.dp
 
 data class MenuItem(val group: String, val text: String, val onClick: () -> Unit)
@@ -39,7 +41,7 @@ fun MenuBarRow(
     menuItems
         .groupBy { it.group }
         .forEach { (group, groupItems) ->
-          Box {
+          Box(modifier = Modifier.height(MENU_BAR_HEIGHT)) {
             TextButton(
                 onClick = { expandedGroups[group] = true },
                 modifier = Modifier.height(MENU_BAR_HEIGHT),
@@ -48,20 +50,11 @@ fun MenuBarRow(
             ) {
               Text(group)
             }
-            DropdownMenu(
+            MenuBarDropdown(
                 expanded = expandedGroups.getValue(group),
                 onDismissRequest = { expandedGroups[group] = false },
-            ) {
-              groupItems.forEach { groupItem ->
-                DropdownMenuItem(
-                    text = { Text(groupItem.text) },
-                    onClick = {
-                      expandedGroups[group] = false
-                      groupItem.onClick()
-                    },
-                )
-              }
-            }
+                menuItems = groupItems,
+            )
           }
         }
   }
