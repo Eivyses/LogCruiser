@@ -21,8 +21,10 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import eivydas.senkus.logcruiser.ui.LogCruiserPreview
 import java.awt.Cursor
 
 private val SIDEBAR_STRIPE_WIDTH = 48.dp
@@ -54,7 +56,28 @@ fun SideBar(
     minWidth: Dp = SIDEBAR_MIN_WIDTH,
     maxWidth: Dp = SIDEBAR_MAX_WIDTH,
 ) {
-  var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+  SideBarLayout(
+      side = side,
+      items = items,
+      modifier = modifier,
+      initialWidth = initialWidth,
+      minWidth = minWidth,
+      maxWidth = maxWidth,
+      initialSelectedId = null,
+  )
+}
+
+@Composable
+private fun SideBarLayout(
+    side: SideBarSide,
+    items: List<SideBarItem>,
+    modifier: Modifier,
+    initialWidth: Dp,
+    minWidth: Dp,
+    maxWidth: Dp,
+    initialSelectedId: String?,
+) {
+  var selectedId by rememberSaveable { mutableStateOf(initialSelectedId) }
   var panelWidth by rememberSaveable {
     mutableStateOf(initialWidth.coerceIn(minWidth, maxWidth))
   }
@@ -71,7 +94,7 @@ fun SideBar(
     }
 
     if (side == SideBarSide.Right && selectedItem != null) {
-      SideBarContent(item = selectedItem, width = panelWidth) { selectedId = null }
+      SideBarContent(item = selectedItem, width = panelWidth)
     }
 
     SideBarStripe(
@@ -84,7 +107,7 @@ fun SideBar(
     )
 
     if (side == SideBarSide.Left && selectedItem != null) {
-      SideBarContent(item = selectedItem, width = panelWidth) { selectedId = null }
+      SideBarContent(item = selectedItem, width = panelWidth)
       SideBarResizeHandle(
           side = side,
           onResize = { delta ->
@@ -155,7 +178,7 @@ private fun SideBarStripe(
 }
 
 @Composable
-private fun SideBarContent(item: SideBarItem, width: Dp, onClose: () -> Unit) {
+private fun SideBarContent(item: SideBarItem, width: Dp) {
   Surface(
       modifier = Modifier.width(width).fillMaxHeight(),
       color = MaterialTheme.colorScheme.surface,
@@ -164,16 +187,12 @@ private fun SideBarContent(item: SideBarItem, width: Dp, onClose: () -> Unit) {
       Row(
           modifier = Modifier.fillMaxWidth().height(48.dp),
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween,
       ) {
         Text(
             text = item.title,
             modifier = Modifier.padding(start = 16.dp),
             style = MaterialTheme.typography.titleSmall,
         )
-        TextButton(onClick = onClose, contentPadding = PaddingValues(horizontal = 12.dp)) {
-          Text("X")
-        }
       }
       HorizontalDivider()
       Box(modifier = Modifier.weight(1f).fillMaxWidth()) { item.content() }
@@ -221,5 +240,57 @@ private fun SideBarResizeHandle(
               MaterialTheme.colorScheme.outlineVariant
             },
     )
+  }
+}
+
+@Preview(name = "Light")
+@Composable
+private fun PreviewSideBarLight() {
+  PreviewSideBar(isDark = false)
+}
+
+@Preview(name = "Dark")
+@Composable
+private fun PreviewSideBarDark() {
+  PreviewSideBar(isDark = true)
+}
+
+@Composable
+private fun PreviewSideBar(isDark: Boolean) {
+  LogCruiserPreview(isDark = isDark) {
+    SideBarLayout(
+        side = SideBarSide.Right,
+        items =
+            listOf(
+                SideBarItem(
+                    id = "filters",
+                    title = "Filters",
+                    icon = { Text("F") },
+                    content = { PreviewSideBarContent("Filter controls") },
+                ),
+                SideBarItem(
+                    id = "database",
+                    title = "Database",
+                    icon = { Text("D") },
+                    content = { PreviewSideBarContent("Database tools") },
+                ),
+            ),
+        modifier = Modifier.height(480.dp),
+        initialWidth = 280.dp,
+        minWidth = SIDEBAR_MIN_WIDTH,
+        maxWidth = SIDEBAR_MAX_WIDTH,
+        initialSelectedId = "filters",
+    )
+  }
+}
+
+@Composable
+private fun PreviewSideBarContent(text: String) {
+  Column(
+      modifier = Modifier.fillMaxSize().padding(16.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
+    Text(text)
+    Text("Preview content")
   }
 }
