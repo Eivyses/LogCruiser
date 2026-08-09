@@ -27,7 +27,7 @@ fun MenuBarDropdown(
               anchor = Alignment.BottomStart,
               alignment = Alignment.BottomEnd,
           ),
-      properties = PopupProperties(focusable = true),
+      properties = PopupProperties(focusable = false),
   ) {
     Surface(
         modifier = Modifier.width(IntrinsicSize.Max),

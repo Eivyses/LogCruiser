@@ -1,13 +1,18 @@
 package eivydas.senkus.logcruiser.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,11 +29,7 @@ fun MenuBarRow(
     menuItems: List<MenuItem>,
     modifier: Modifier = Modifier,
 ) {
-  val expandedGroups = remember {
-    mutableStateMapOf<String, Boolean>().apply {
-      menuItems.forEach { put(it.group, false) }
-    }
-  }
+  var expandedGroup by remember { mutableStateOf<String?>(null) }
 
   Row(
       modifier =
@@ -41,18 +42,28 @@ fun MenuBarRow(
     menuItems
         .groupBy { it.group }
         .forEach { (group, groupItems) ->
+          val interactionSource = remember { MutableInteractionSource() }
+          val hovered by interactionSource.collectIsHoveredAsState()
+
+          LaunchedEffect(hovered, expandedGroup, group) {
+            if (hovered && expandedGroup != null && expandedGroup != group) {
+              expandedGroup = group
+            }
+          }
+
           Box(modifier = Modifier.height(MENU_BAR_HEIGHT)) {
             TextButton(
-                onClick = { expandedGroups[group] = true },
+                onClick = { expandedGroup = group },
                 modifier = Modifier.height(MENU_BAR_HEIGHT),
                 contentPadding =
                     PaddingValues(horizontal = MENU_ITEM_HORIZONTAL_PADDING, vertical = 0.dp),
+                interactionSource = interactionSource,
             ) {
               Text(group)
             }
             MenuBarDropdown(
-                expanded = expandedGroups.getValue(group),
-                onDismissRequest = { expandedGroups[group] = false },
+                expanded = expandedGroup == group,
+                onDismissRequest = { expandedGroup = null },
                 menuItems = groupItems,
             )
           }
