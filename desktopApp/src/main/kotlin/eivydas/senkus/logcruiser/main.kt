@@ -18,7 +18,7 @@ fun main() = application {
       title = "LogCruiser",
       state =
           WindowState(
-              width = 1400.dp,
+              width = 1700.dp,
               height = 1000.dp,
           ),
   ) {
