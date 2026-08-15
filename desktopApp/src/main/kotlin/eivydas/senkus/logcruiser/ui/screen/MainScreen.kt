@@ -4,24 +4,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import eivydas.senkus.logcruiser.index.IndexingProgress
-import eivydas.senkus.logcruiser.index.LogFileIndex
-import eivydas.senkus.logcruiser.index.OffsetLineReader
+import eivydas.senkus.logcruiser.session.LogSessionHolder
+import eivydas.senkus.logcruiser.session.ViewerState
 import eivydas.senkus.logcruiser.ui.component.*
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-
-internal sealed class ViewerState {
-  data object Idle : ViewerState()
-
-  data class Indexing(val progress: IndexingProgress) : ViewerState()
-
-  data class Ready(val index: LogFileIndex, val reader: OffsetLineReader) : ViewerState()
-}
 
 @Composable
 fun MainScreen(
@@ -29,27 +17,20 @@ fun MainScreen(
     onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  var state by remember { mutableStateOf<ViewerState>(ViewerState.Idle) }
-  val scope = rememberCoroutineScope()
+  val session = remember { LogSessionHolder() }
+  val state by session.state.collectAsState()
+  val filters by session.filters.collectAsState()
+  val includeMatchMode by session.includeMatchMode.collectAsState()
   val darkLightString = if (isDarkTheme) "light" else "dark"
 
-  val openFile: () -> Unit = {
-    val file = showOpenFileDialog()
-    if (file != null) {
-      scope.launch {
-        state = ViewerState.Idle
-        val index = LogFileIndex(file)
-        val progressJob = launch {
-          index.progress.collect { progress ->
-            state = ViewerState.Indexing(progress)
-          }
-        }
-        index.build()
-        progressJob.cancel()
-        state = ViewerState.Ready(index, OffsetLineReader(file))
-      }
-    }
+  DisposableEffect(session) {
+    onDispose { session.dispose() }
   }
+
+  val openFile: () -> Unit = {
+    showOpenFileDialog()?.let(session::openFile)
+  }
+  val isFiltering = (state as? ViewerState.Ready)?.isFiltering == true
 
   val menuItems =
       listOf(
@@ -57,7 +38,7 @@ fun MainScreen(
           MenuItem(
               group = "Options",
               text = "Change theme to $darkLightString",
-              onClick = { onToggleTheme() },
+              onClick = onToggleTheme,
           ),
       )
   val filterSidebarItems =
@@ -66,7 +47,17 @@ fun MainScreen(
               id = "filters",
               title = "Filters",
               icon = { Text("F") },
-              content = { FiltersPanel() },
+              content = {
+                FiltersPanel(
+                    filters = filters,
+                    isFiltering = isFiltering,
+                    includeMatchMode = includeMatchMode,
+                    onAddFilter = session::addFilter,
+                    onToggleFilter = session::toggleFilter,
+                    onDeleteFilter = session::deleteFilter,
+                    onIncludeMatchModeChange = session::setIncludeMatchMode,
+                )
+              },
           )
       )
 
@@ -75,9 +66,7 @@ fun MainScreen(
   MaterialTheme(colorScheme = colorScheme) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
       Column(modifier = modifier.fillMaxSize()) {
-        MenuBarRow(
-            menuItems = menuItems,
-        )
+        MenuBarRow(menuItems = menuItems)
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
           Row(modifier = Modifier.fillMaxSize()) {
             SideBar(
@@ -85,7 +74,11 @@ fun MainScreen(
                 items = filterSidebarItems,
             )
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-              MainWorkArea(state, scope, onOpenFile = openFile)
+              MainWorkArea(
+                  state = state,
+                  onOpenFile = openFile,
+                  onCancelIndexing = session::cancelIndexing,
+              )
             }
             SideBar(
                 side = SideBarSide.Right,
@@ -99,7 +92,11 @@ fun MainScreen(
 }
 
 @Composable
-private fun MainWorkArea(state: ViewerState, scope: CoroutineScope, onOpenFile: () -> Unit) {
+private fun MainWorkArea(
+    state: ViewerState,
+    onOpenFile: () -> Unit,
+    onCancelIndexing: () -> Unit,
+) {
   when (state) {
     ViewerState.Idle -> {
       IdleScreen(
@@ -111,22 +108,15 @@ private fun MainWorkArea(state: ViewerState, scope: CoroutineScope, onOpenFile: 
     is ViewerState.Indexing -> {
       IndexingScreen(
           progress = state.progress,
-          onCancel = { scope.cancel() },
+          onCancel = onCancelIndexing,
           modifier = Modifier.fillMaxSize(),
       )
     }
 
     is ViewerState.Ready -> {
-      val index = state.index
-      val reader = state.reader
-
-      DisposableEffect(reader) {
-        onDispose { reader.close() }
-      }
-
       LogViewport(
-          index = index,
-          reader = reader,
+          filteredIndex = state.filteredIndex,
+          reader = state.reader,
           modifier = Modifier.fillMaxSize(),
       )
     }

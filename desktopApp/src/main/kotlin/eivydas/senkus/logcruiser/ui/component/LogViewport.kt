@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import eivydas.senkus.logcruiser.index.LogFileIndex
+import eivydas.senkus.logcruiser.index.FilteredLogFileIndex
 import eivydas.senkus.logcruiser.index.OffsetLineReader
 import eivydas.senkus.logcruiser.ui.LogCruiserPreview
 
@@ -23,7 +23,7 @@ private val LINE_NUMBER_WIDTH = 90.dp
 
 @Composable
 fun LogViewport(
-    index: LogFileIndex,
+    filteredIndex: FilteredLogFileIndex,
     reader: OffsetLineReader,
     modifier: Modifier = Modifier,
 ) {
@@ -36,10 +36,13 @@ fun LogViewport(
           state = listState,
           modifier = Modifier.fillMaxSize(),
       ) {
-        items(count = index.lineCount, key = { it }) { lineIdx ->
+        items(count = filteredIndex.lineCount, key = { filteredIndex.sourceLineIndexAt(it) }) {
+            filteredLineIndex ->
+          // The list position is filtered; reading still needs the corresponding source line.
+          val sourceLineIndex = filteredIndex.sourceLineIndexAt(filteredLineIndex)
           LogLine(
-              lineNumber = lineIdx + 1,
-              lineText = reader.readLine(index.offsetsArray, lineIdx),
+              lineNumber = sourceLineIndex + 1,
+              lineText = reader.readLine(filteredIndex.sourceIndex, sourceLineIndex),
               horizontalScrollState = horizontalScrollState,
               modifier = Modifier.fillMaxWidth(),
           )

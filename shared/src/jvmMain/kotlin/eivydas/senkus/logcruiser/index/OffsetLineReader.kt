@@ -11,15 +11,15 @@ class OffsetLineReader(file: File) : Closeable {
   private val channel = FileChannel.open(file.toPath(), StandardOpenOption.READ)
   private val fileLength = file.length().toInt()
 
-  fun readLine(offsets: IntArray, lineIndex: Int): String {
-    if (lineIndex < 0 || lineIndex >= offsets.size) {
+  fun readLine(index: LogFileIndex, lineIndex: Int): String {
+    if (lineIndex < 0 || lineIndex >= index.lineCount) {
       return ""
     }
 
-    val startOffset = offsets[lineIndex]
+    val startOffset = index.offset(lineIndex)
     val endOffset =
-        if (lineIndex + 1 < offsets.size) {
-          offsets[lineIndex + 1]
+        if (lineIndex + 1 < index.lineCount) {
+          index.offset(lineIndex + 1)
         } else {
           fileLength
         }

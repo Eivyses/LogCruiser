@@ -1,15 +1,15 @@
 package eivydas.senkus.logcruiser.index
 
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.StandardOpenOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.channels.FileChannel
-import java.nio.file.StandardOpenOption
 
 data class IndexingProgress(val bytesRead: Long, val totalBytes: Long, val done: Boolean)
 
@@ -19,8 +19,6 @@ class LogFileIndex(private val file: File) {
   val progress: StateFlow<IndexingProgress> = _progress.asStateFlow()
 
   private var offsets: IntArray = IntArray(0)
-  val offsetsArray: IntArray
-    get() = offsets
 
   val lineCount: Int
     get() = offsets.size
@@ -28,7 +26,7 @@ class LogFileIndex(private val file: File) {
   suspend fun build() {
     withContext(Dispatchers.IO) {
       val totalBytes = file.length()
-      val fileOffsets = IntArrayList(initialCapacity = 1024)
+      val fileOffsets = IntArrayBuilder()
       if (totalBytes > 0) {
         fileOffsets.add(0)
       }
@@ -66,20 +64,4 @@ class LogFileIndex(private val file: File) {
   }
 
   fun offset(lineIndex: Int): Int = offsets[lineIndex]
-
-  private class IntArrayList(initialCapacity: Int = 16) {
-    private var data: IntArray = IntArray(initialCapacity)
-    var size: Int = 0
-      private set
-
-    fun add(value: Int) {
-      if (size == data.size) {
-        data = data.copyOf(data.size * 2)
-      }
-      data[size] = value
-      size++
-    }
-
-    fun toArray(): IntArray = data.copyOf(size)
-  }
 }
