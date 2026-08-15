@@ -7,6 +7,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 
 class LogFileIndexTest {
 
@@ -91,6 +92,9 @@ class LogFileIndexTest {
     val progressValues = mutableListOf<IndexingProgress>()
     val collectJob = launch { index.progress.collect { progressValues.add(it) } }
     index.build()
+    while (progressValues.lastOrNull()?.done != true) {
+      yield()
+    }
     collectJob.cancel()
 
     val final = index.progress.value
