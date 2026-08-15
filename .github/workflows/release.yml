@@ -60,11 +60,19 @@ jobs:
         shell: bash
         run: ./gradlew packageReleaseDistributionForCurrentOS -PpackageVersion=${{ steps.version.outputs.package_version }}
 
+      - name: Dump packaging logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          find desktopApp/build/compose/logs -type f \
+            \( -name '*-err.txt' -o -name '*-out.txt' \) \
+            -print -exec sh -c 'echo "=== $1 ==="; tail -n 200 "$1"' _ {} \;
+
       - name: Collect installer
         shell: bash
         run: |
           mkdir -p dist
-          find build/compose/binaries -type f \
+          find desktopApp/build/compose/binaries -type f \
             \( -name '*.AppImage' -o -name '*.dmg' -o -name '*.exe' \) \
             -exec cp {} dist/ \;
           ls -la dist
