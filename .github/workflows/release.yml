@@ -60,6 +60,38 @@ jobs:
         shell: bash
         run: ./gradlew packageReleaseDistributionForCurrentOS -PpackageVersion=${{ steps.version.outputs.package_version }}
 
+      - name: Build AppImage from app dir
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          VERSION=${{ steps.version.outputs.package_version }}
+          APP_DIR=desktopApp/build/compose/binaries/main-release/app/logcruiser
+          curl -L -o /tmp/appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool
+          mkdir -p AppDir
+          cp -r "$APP_DIR"/. AppDir/
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          SELF="$(dirname "$(readlink -f "$0")")"
+          exec "$SELF/bin/logcruiser" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          cat > AppDir/logcruiser.desktop <<EOF
+          [Desktop Entry]
+          Name=LogCruiser
+          Comment=Log file viewer
+          Exec=logcruiser
+          Icon=logcruiser
+          Type=Application
+          Categories=Utility;
+          Terminal=false
+          EOF
+          cp "$APP_DIR/lib/logcruiser.png" AppDir/logcruiser.png
+          mkdir -p dist
+          APPIMAGE_EXTRACT_AND_RUN=1 /tmp/appimagetool AppDir dist/logcruiser-$VERSION.AppImage
+
       - name: Dump packaging logs on failure
         if: failure()
         shell: bash
