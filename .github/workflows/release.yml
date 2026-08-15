@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.3). A v-prefixed tag will be created.'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.artifact }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: AppImage
+          - os: macos-latest
+            artifact: Dmg
+          - os: windows-latest
+            artifact: Exe
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            echo "package_version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "tag=v${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "package_version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        shell: bash
+        run: ./gradlew build
+
+      - name: Package ${{ matrix.artifact }}
+        shell: bash
+        run: ./gradlew packageReleaseDistributionForCurrentOS -PpackageVersion=${{ steps.version.outputs.package_version }}
+
+      - name: Collect installer
+        shell: bash
+        run: |
+          mkdir -p dist
+          find build/compose/binaries -type f \
+            \( -name '*.AppImage' -o -name '*.dmg' -o -name '*.exe' \) \
+            -exec cp {} dist/ \;
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: installer-*
+          merge-multiple: true
+
+      - name: List installers
+        run: ls -la dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          files: dist/**
+          generate_release_notes: true

@@ -22,9 +22,9 @@ compose.desktop {
         mainClass = "eivydas.senkus.logcruiser.MainKt"
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "eivydas.senkus.logcruiser"
-            packageVersion = "1.0.0"
+            targetFormats(TargetFormat.Dmg, TargetFormat.AppImage, TargetFormat.Exe)
+            packageName = "logcruiser"
+            packageVersion = project.findProperty("packageVersion") as? String ?: "0.1.0"
         }
     }
 }
