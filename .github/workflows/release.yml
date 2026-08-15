@@ -72,10 +72,17 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
+          echo "--- files under desktopApp/build/compose/binaries ---"
+          find desktopApp/build/compose/binaries -type f -print
           find desktopApp/build/compose/binaries -type f \
-            \( -name '*.AppImage' -o -name '*.dmg' -o -name '*.exe' \) \
+            \( -iname '*.appimage' -o -iname '*.dmg' -o -iname '*.exe' \) \
             -exec cp {} dist/ \;
+          echo "--- contents of dist ---"
           ls -la dist
+          if [[ -z "$(find dist -type f -print -quit)" ]]; then
+            echo "::error::No installer file produced. See the file listing above."
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:

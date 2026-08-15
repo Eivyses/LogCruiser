@@ -24,7 +24,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.AppImage, TargetFormat.Exe)
             packageName = "logcruiser"
-            packageVersion = project.findProperty("packageVersion") as? String ?: "0.1.0"
+            packageVersion = project.findProperty("packageVersion") as? String ?: "1.0.0"
         }
     }
 }
