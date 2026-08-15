@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import eivydas.senkus.logcruiser.index.FilteredLogFileIndex
 import eivydas.senkus.logcruiser.index.OffsetLineReader
@@ -31,23 +32,32 @@ fun LogViewport(
   val listState = rememberLazyListState()
 
   Row(modifier = modifier.fillMaxSize()) {
-    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-      LazyColumn(
-          state = listState,
-          modifier = Modifier.fillMaxSize(),
+    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+      Box(
+          modifier = Modifier.weight(1f).fillMaxWidth().horizontalScroll(horizontalScrollState),
       ) {
-        items(count = filteredIndex.lineCount, key = { filteredIndex.sourceLineIndexAt(it) }) {
-            filteredLineIndex ->
-          // The list position is filtered; reading still needs the corresponding source line.
-          val sourceLineIndex = filteredIndex.sourceLineIndexAt(filteredLineIndex)
-          LogLine(
-              lineNumber = sourceLineIndex + 1,
-              lineText = reader.readLine(filteredIndex.sourceIndex, sourceLineIndex),
-              horizontalScrollState = horizontalScrollState,
-              modifier = Modifier.fillMaxWidth(),
-          )
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxHeight(),
+        ) {
+          items(count = filteredIndex.lineCount, key = { filteredIndex.sourceLineIndexAt(it) }) {
+              filteredLineIndex ->
+            // The list position is filtered; reading still needs the corresponding source line.
+            val sourceLineIndex = filteredIndex.sourceLineIndexAt(filteredLineIndex)
+            LogLine(
+                lineNumber = sourceLineIndex + 1,
+                lineText = reader.readLine(filteredIndex.sourceIndex, sourceLineIndex),
+                horizontalScrollState = horizontalScrollState,
+            )
+          }
         }
       }
+
+      HorizontalScrollbar(
+          adapter = rememberScrollbarAdapter(horizontalScrollState),
+          style = scrollbarStyle(),
+          modifier = Modifier.fillMaxWidth().height(16.dp).padding(horizontal = 5.dp),
+      )
     }
 
     Box(modifier = Modifier.padding(horizontal = 5.dp).width(16.dp).fillMaxHeight()) {
@@ -65,34 +75,41 @@ private fun LogLine(
     lineNumber: Int,
     lineText: String,
     horizontalScrollState: ScrollState,
-    modifier: Modifier = Modifier,
 ) {
-  Row(modifier = modifier.height(IntrinsicSize.Min)) {
-    Box(
-        modifier = Modifier.requiredWidth(LINE_NUMBER_WIDTH).padding(start = 4.dp, end = 12.dp),
-        contentAlignment = Alignment.CenterEnd,
-    ) {
+  Box {
+    Row {
+      Spacer(modifier = Modifier.requiredWidth(LINE_NUMBER_WIDTH))
       Text(
-          text = "%8d".format(lineNumber),
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          text = lineText,
+          modifier = Modifier.padding(start = 4.dp),
           fontFamily = FontFamily.Monospace,
           maxLines = 1,
           softWrap = false,
       )
     }
-    VerticalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant,
-        thickness = 1.dp,
-        modifier = Modifier.fillMaxHeight(),
-    )
-    Text(
-        text = lineText,
+    Row(
         modifier =
-            Modifier.weight(1f).padding(start = 4.dp).horizontalScroll(horizontalScrollState),
-        fontFamily = FontFamily.Monospace,
-        maxLines = 1,
-        softWrap = false,
-    )
+            Modifier.offset { IntOffset(x = horizontalScrollState.value, y = 0) }
+                .background(MaterialTheme.colorScheme.background),
+    ) {
+      Box(
+          modifier = Modifier.requiredWidth(LINE_NUMBER_WIDTH).padding(start = 4.dp, end = 12.dp),
+          contentAlignment = Alignment.CenterEnd,
+      ) {
+        Text(
+            text = "%8d".format(lineNumber),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            softWrap = false,
+        )
+      }
+      VerticalDivider(
+          color = MaterialTheme.colorScheme.outlineVariant,
+          thickness = 1.dp,
+          modifier = Modifier.fillMaxHeight(),
+      )
+    }
   }
 }
 
@@ -130,8 +147,9 @@ private fun PreviewLogLinesDark() {
 
 @Composable
 private fun PreviewLogLines() {
+  val verticalScrollState = rememberScrollState()
   val horizontalScrollState = rememberScrollState()
-  Column(Modifier.verticalScroll(state = horizontalScrollState)) {
+  Column(Modifier.verticalScroll(state = verticalScrollState)) {
     LogLine(
         lineNumber = 1,
         lineText = "[2024-01-15 10:30:45] [INFO] Application started successfully",
