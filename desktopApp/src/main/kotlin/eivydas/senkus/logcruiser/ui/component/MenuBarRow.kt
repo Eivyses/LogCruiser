@@ -19,7 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eivydas.senkus.logcruiser.ui.LogCruiserPreview
 
-private val MENU_BAR_HEIGHT = 32.dp
+internal val APP_BAR_HEIGHT = 32.dp
 private val MENU_ITEM_HORIZONTAL_PADDING = 8.dp
 
 data class MenuItem(val group: String, val text: String, val onClick: () -> Unit)
@@ -36,7 +36,7 @@ fun MenuBarRow(
           modifier
               .fillMaxWidth()
               .background(MaterialTheme.colorScheme.surfaceVariant)
-              .height(MENU_BAR_HEIGHT),
+              .height(APP_BAR_HEIGHT),
       verticalAlignment = Alignment.CenterVertically,
   ) {
     menuItems
@@ -51,10 +51,10 @@ fun MenuBarRow(
             }
           }
 
-          Box(modifier = Modifier.height(MENU_BAR_HEIGHT)) {
+          Box(modifier = Modifier.height(APP_BAR_HEIGHT)) {
             TextButton(
                 onClick = { expandedGroup = group },
-                modifier = Modifier.height(MENU_BAR_HEIGHT),
+                modifier = Modifier.height(APP_BAR_HEIGHT),
                 contentPadding =
                     PaddingValues(horizontal = MENU_ITEM_HORIZONTAL_PADDING, vertical = 0.dp),
                 interactionSource = interactionSource,

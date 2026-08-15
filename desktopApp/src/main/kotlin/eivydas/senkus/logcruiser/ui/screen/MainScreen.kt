@@ -31,6 +31,7 @@ fun MainScreen(
     showOpenFileDialog()?.let(session::openFile)
   }
   val isFiltering = (state as? ViewerState.Ready)?.isFiltering == true
+  val readyState = state as? ViewerState.Ready
 
   val menuItems =
       listOf(
@@ -86,6 +87,10 @@ fun MainScreen(
             )
           }
         }
+        StatusBar(
+            totalLines = readyState?.filteredIndex?.sourceIndex?.lineCount,
+            visibleLines = readyState?.filteredIndex?.lineCount,
+        )
       }
     }
   }
