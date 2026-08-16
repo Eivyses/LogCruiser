@@ -21,6 +21,7 @@ fun MainScreen(
   val state by session.state.collectAsState()
   val filters by session.filters.collectAsState()
   val includeMatchMode by session.includeMatchMode.collectAsState()
+  val quickFilter by session.quickFilter.collectAsState()
   val darkLightString = if (isDarkTheme) "light" else "dark"
 
   DisposableEffect(session) {
@@ -74,12 +75,21 @@ fun MainScreen(
                 side = SideBarSide.Left,
                 items = filterSidebarItems,
             )
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-              MainWorkArea(
-                  state = state,
-                  onOpenFile = openFile,
-                  onCancelIndexing = session::cancelIndexing,
-              )
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+              if (state is ViewerState.Ready) {
+                QuickFilterBar(
+                    appliedValue = quickFilter?.value,
+                    isFiltering = isFiltering,
+                    onApply = session::setQuickFilterText,
+                )
+              }
+              Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                MainWorkArea(
+                    state = state,
+                    onOpenFile = openFile,
+                    onCancelIndexing = session::cancelIndexing,
+                )
+              }
             }
             SideBar(
                 side = SideBarSide.Right,

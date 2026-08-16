@@ -45,6 +45,18 @@ class FilterEngineTest {
   }
 
   @Test
+  fun `quick filter narrows the existing projection`() = runBlocking {
+    val projection =
+        filter(
+            content = "ERROR timeout\nERROR failed\nWARN timeout\n",
+            filters = listOf(filter(FilterKind.Include, "error")),
+            quickFilter = filter(FilterKind.Include, "timeout"),
+        )
+
+    assertProjection(projection, intArrayOf(0))
+  }
+
+  @Test
   fun `not contains filters exclude matching lines`() = runBlocking {
     val projection =
         filter(
@@ -138,12 +150,13 @@ class FilterEngineTest {
       content: String,
       filters: List<FilterDef>,
       includeMatchMode: IncludeMatchMode = IncludeMatchMode.Any,
+      quickFilter: FilterDef? = null,
   ): FilteredLogFileIndex {
     val file = createTempFile(content)
     val index = LogFileIndex(file)
     index.build()
     OffsetLineReader(file).use { reader ->
-      return FilterEngine.filter(index, reader, filters, includeMatchMode)
+      return FilterEngine.filter(index, reader, filters, includeMatchMode, quickFilter)
     }
   }
 

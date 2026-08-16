@@ -18,10 +18,12 @@ object FilterEngine {
       reader: OffsetLineReader,
       filters: List<FilterDef>,
       includeMatchMode: IncludeMatchMode = IncludeMatchMode.Any,
+      quickFilter: FilterDef? = null,
   ): FilteredLogFileIndex =
       withContext(Dispatchers.IO) {
         val activeFilters = filters.filter { it.enabled }
-        if (activeFilters.isEmpty()) {
+        val activeQuickFilter = quickFilter?.takeIf { it.enabled }
+        if (activeFilters.isEmpty() && activeQuickFilter == null) {
           return@withContext FilteredLogFileIndex.all(index)
         }
 
@@ -34,9 +36,10 @@ object FilterEngine {
           ensureActive()
           val line = reader.readLine(index, sourceLineIndex)
           val included = includeFilters.matches(line, includeMatchMode)
+          val quickIncluded = activeQuickFilter == null || matches(activeQuickFilter, line)
           val excluded = excludeFilters.any { filter -> matches(filter, line) }
 
-          if (included && !excluded) {
+          if (included && quickIncluded && !excluded) {
             visibleSourceLineIndexes.add(sourceLineIndex)
           }
         }

@@ -9,9 +9,6 @@ import eivydas.senkus.logcruiser.model.FilterDef
 import eivydas.senkus.logcruiser.model.FilterKind
 import eivydas.senkus.logcruiser.model.FilterType
 import eivydas.senkus.logcruiser.model.IncludeMatchMode
-import java.io.File
-import java.util.UUID
-import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +25,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.File
+import java.util.UUID
+import kotlin.coroutines.CoroutineContext
+
+private const val QUICK_FILTER_ID = "quick-filter"
 
 sealed class ViewerState {
   data object Idle : ViewerState()
@@ -48,6 +50,7 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
   private val _state = MutableStateFlow<ViewerState>(ViewerState.Idle)
   private val _filters = MutableStateFlow(emptyList<FilterDef>())
   private val _includeMatchMode = MutableStateFlow(IncludeMatchMode.Any)
+  private val _quickFilter = MutableStateFlow<FilterDef?>(null)
 
   private var sessionJob: Job? = null
   private var session: Session? = null
@@ -55,6 +58,7 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
   val state: StateFlow<ViewerState> = _state.asStateFlow()
   val filters: StateFlow<List<FilterDef>> = _filters.asStateFlow()
   val includeMatchMode: StateFlow<IncludeMatchMode> = _includeMatchMode.asStateFlow()
+  val quickFilter: StateFlow<FilterDef?> = _quickFilter.asStateFlow()
 
   fun openFile(file: File) {
     // Remove the old reader from the UI before cancellation can close it.
@@ -100,6 +104,27 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
     _includeMatchMode.value = mode
   }
 
+  fun setQuickFilter(filter: FilterDef?) {
+    require(filter == null || filter.kind == FilterKind.Include) {
+      "Quick filter must be an include filter"
+    }
+    _quickFilter.value = filter
+  }
+
+  fun setQuickFilterText(value: String) {
+    val trimmedValue = value.trim()
+    setQuickFilter(
+        trimmedValue.takeIf { it.isNotEmpty() }?.let {
+          FilterDef(
+              id = QUICK_FILTER_ID,
+              kind = FilterKind.Include,
+              type = FilterType.Substring,
+              value = it,
+          )
+        }
+    )
+  }
+
   fun dispose() {
     _state.value = ViewerState.Idle
     sessionJob?.cancel()
@@ -134,11 +159,12 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
               isFiltering = false,
           )
 
-      combine(_filters, _includeMatchMode) { filters, includeMatchMode ->
-            FilterRequest(filters, includeMatchMode)
+      combine(_filters, _includeMatchMode, _quickFilter) { filters, includeMatchMode, quickFilter,
+            ->
+            FilterRequest(filters, includeMatchMode, quickFilter)
           }
           .collectLatest { request ->
-            if (request.filters.none { it.enabled }) {
+            if (request.filters.none { it.enabled } && request.quickFilter == null) {
               _state.value =
                   ViewerState.Ready(
                       filteredIndex = FilteredLogFileIndex.all(currentSession.index),
@@ -162,6 +188,7 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
                     reader = currentSession.reader,
                     filters = request.filters,
                     includeMatchMode = request.includeMatchMode,
+                    quickFilter = request.quickFilter,
                 )
             if (session === currentSession) {
               _state.value =
@@ -185,5 +212,6 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
   private data class FilterRequest(
       val filters: List<FilterDef>,
       val includeMatchMode: IncludeMatchMode,
+      val quickFilter: FilterDef?,
   )
 }

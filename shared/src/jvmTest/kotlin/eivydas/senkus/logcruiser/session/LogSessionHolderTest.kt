@@ -1,6 +1,8 @@
 package eivydas.senkus.logcruiser.session
 
+import eivydas.senkus.logcruiser.model.FilterDef
 import eivydas.senkus.logcruiser.model.FilterKind
+import eivydas.senkus.logcruiser.model.FilterType
 import eivydas.senkus.logcruiser.model.IncludeMatchMode
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -21,6 +23,33 @@ class LogSessionHolderTest {
       holder.addFilter(FilterKind.Include, "  error  ")
 
       assertEquals("error", holder.filters.value.single().value)
+    } finally {
+      holder.dispose()
+    }
+  }
+
+  @Test
+  fun `quick filter trims and clears value`() = runBlocking {
+    val holder = LogSessionHolder()
+    try {
+      val definition =
+          FilterDef(
+              id = "quick",
+              kind = FilterKind.Include,
+              type = FilterType.Substring,
+              value = "timeout",
+          )
+      holder.setQuickFilter(definition)
+      assertEquals(definition, holder.quickFilter.value)
+
+      holder.setQuickFilterText("  timeout  ")
+      val quickFilter = holder.quickFilter.value
+      assertEquals("timeout", quickFilter?.value)
+      assertEquals(FilterKind.Include, quickFilter?.kind)
+      assertEquals(FilterType.Substring, quickFilter?.type)
+
+      holder.setQuickFilterText("   ")
+      assertEquals(null, holder.quickFilter.value)
     } finally {
       holder.dispose()
     }
@@ -60,6 +89,45 @@ class LogSessionHolderTest {
           }
       assertTrue(!filtered.isFiltering)
       assertEquals(1, filtered.filteredIndex.sourceLineIndexAt(0))
+    } finally {
+      holder.dispose()
+    }
+  }
+
+  @Test
+  fun `quick filter narrows and clearing restores existing projection`() = runBlocking {
+    val file = createTempFile("ERROR timeout\nERROR failed\nINFO timeout\n")
+    val holder = LogSessionHolder()
+    try {
+      holder.openFile(file)
+      withTimeout(5.seconds) {
+        holder.state.filterIsInstance<ViewerState.Ready>().first()
+      }
+
+      holder.addFilter(FilterKind.Include, "error")
+      withTimeout(5.seconds) {
+        holder.state.filterIsInstance<ViewerState.Ready>().first {
+          !it.isFiltering && it.filteredIndex.lineCount == 2
+        }
+      }
+
+      holder.setQuickFilterText("timeout")
+      val narrowed =
+          withTimeout(5.seconds) {
+            holder.state.filterIsInstance<ViewerState.Ready>().first {
+              !it.isFiltering && it.filteredIndex.lineCount == 1
+            }
+          }
+      assertEquals(0, narrowed.filteredIndex.sourceLineIndexAt(0))
+
+      holder.setQuickFilterText("")
+      val restored =
+          withTimeout(5.seconds) {
+            holder.state.filterIsInstance<ViewerState.Ready>().first {
+              !it.isFiltering && it.filteredIndex.lineCount == 2
+            }
+          }
+      assertEquals(2, restored.filteredIndex.lineCount)
     } finally {
       holder.dispose()
     }
