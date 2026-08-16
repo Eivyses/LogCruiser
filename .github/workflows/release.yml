@@ -35,8 +35,8 @@ jobs:
         run: |
           set -euo pipefail
           version="${INPUT_VERSION:-${REF_NAME#v}}"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Version must use MAJOR.MINOR.PATCH format."
+          if [[ ! "$version" =~ ^[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must use MAJOR.MINOR.PATCH format with a major version of at least 1."
             printf 'Received version: %q\n' "$version"
             exit 1
           fi
@@ -122,10 +122,13 @@ jobs:
           Name=LogCruiser
           Comment=Log file viewer
           Exec=logcruiser
+          Icon=logcruiser
           Type=Application
           Categories=Utility;
           Terminal=false
           EOF
+          test -f "$APP_DIR/lib/logcruiser.png"
+          cp "$APP_DIR/lib/logcruiser.png" AppDir/logcruiser.png
           mkdir -p dist
           APPIMAGE_EXTRACT_AND_RUN=1 /tmp/appimagetool AppDir dist/logcruiser-$VERSION.AppImage
 
