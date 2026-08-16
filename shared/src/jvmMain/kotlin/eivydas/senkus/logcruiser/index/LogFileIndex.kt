@@ -58,6 +58,7 @@ class LogFileIndex(private val file: File) {
         }
       }
 
+      ensureActive()
       offsets = fileOffsets.toArray()
       _progress.value = IndexingProgress(totalBytes, totalBytes, done = true)
     }

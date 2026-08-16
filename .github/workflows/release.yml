@@ -12,24 +12,41 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build ${{ matrix.artifact }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: AppImage
-          - os: macos-latest
-            artifact: Dmg
-          - os: windows-latest
-            artifact: Exe
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
     outputs:
+      package_version: ${{ steps.version.outputs.package_version }}
       tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Compute version
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-${REF_NAME#v}}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must use MAJOR.MINOR.PATCH format."
+            printf 'Received version: %q\n' "$version"
+            exit 1
+          fi
+          echo "package_version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+  test:
+    name: Test
+    needs: prepare
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -40,34 +57,56 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Compute version
-        id: version
+      - name: Run tests
         shell: bash
-        run: |
-          if [[ -n "${{ github.event.inputs.version }}" ]]; then
-            echo "package_version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
-            echo "tag=v${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "package_version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
-          fi
+        run: ./gradlew :shared:allTests
 
-      - name: Build
-        shell: bash
-        run: ./gradlew build
+  package:
+    name: Build ${{ matrix.artifact }}
+    needs: [prepare, test]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: AppImage
+            package_task: ':desktopApp:packageReleaseAppImage'
+          - os: macos-latest
+            artifact: Dmg
+            package_task: ':desktopApp:packageReleaseDmg'
+          - os: windows-latest
+            artifact: Exe
+            package_task: ':desktopApp:packageReleaseExe'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Package ${{ matrix.artifact }}
+        env:
+          PACKAGE_TASK: ${{ matrix.package_task }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
         shell: bash
-        run: ./gradlew packageReleaseDistributionForCurrentOS -PpackageVersion=${{ steps.version.outputs.package_version }}
+        run: |
+          set -euo pipefail
+          ./gradlew "$PACKAGE_TASK" "-PpackageVersion=$PACKAGE_VERSION"
 
       - name: Build AppImage from app dir
         if: matrix.os == 'ubuntu-latest'
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
         shell: bash
         run: |
           set -euxo pipefail
-          VERSION=${{ steps.version.outputs.package_version }}
+          VERSION="$PACKAGE_VERSION"
           APP_DIR=desktopApp/build/compose/binaries/main-release/app/logcruiser
-          curl -L -o /tmp/appimagetool \
+          curl --fail --location --retry 3 -o /tmp/appimagetool \
             https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x /tmp/appimagetool
           mkdir -p AppDir
@@ -83,12 +122,10 @@ jobs:
           Name=LogCruiser
           Comment=Log file viewer
           Exec=logcruiser
-          Icon=logcruiser
           Type=Application
           Categories=Utility;
           Terminal=false
           EOF
-          cp "$APP_DIR/lib/logcruiser.png" AppDir/logcruiser.png
           mkdir -p dist
           APPIMAGE_EXTRACT_AND_RUN=1 /tmp/appimagetool AppDir dist/logcruiser-$VERSION.AppImage
 
@@ -96,19 +133,39 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          find desktopApp/build/compose/logs -type f \
-            \( -name '*-err.txt' -o -name '*-out.txt' \) \
-            -print -exec sh -c 'echo "=== $1 ==="; tail -n 200 "$1"' _ {} \;
+          if [[ -d desktopApp/build/compose/logs ]]; then
+            find desktopApp/build/compose/logs -type f \
+              \( -name '*-err.txt' -o -name '*-out.txt' \) \
+              -print -exec sh -c 'echo "=== $1 ==="; tail -n 200 "$1"' _ {} \;
+          else
+            echo "No Compose packaging logs were produced."
+          fi
 
       - name: Collect installer
+        env:
+          ARTIFACT: ${{ matrix.artifact }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist
-          echo "--- files under desktopApp/build/compose/binaries ---"
-          find desktopApp/build/compose/binaries -type f -print
-          find desktopApp/build/compose/binaries -type f \
-            \( -iname '*.appimage' -o -iname '*.dmg' -o -iname '*.exe' \) \
-            -exec cp {} dist/ \;
+          case "$ARTIFACT" in
+            AppImage)
+              test -f "dist/logcruiser-$PACKAGE_VERSION.AppImage"
+              ;;
+            Dmg)
+              find desktopApp/build/compose/binaries/main-release/dmg -type f \
+                -iname '*.dmg' -exec cp {} dist/ \;
+              ;;
+            Exe)
+              find desktopApp/build/compose/binaries/main-release/exe -type f \
+                -iname '*.exe' -exec cp {} dist/ \;
+              ;;
+            *)
+              echo "::error::Unsupported artifact: $ARTIFACT"
+              exit 1
+              ;;
+          esac
           echo "--- contents of dist ---"
           ls -la dist
           if [[ -z "$(find dist -type f -print -quit)" ]]; then
@@ -124,8 +181,10 @@ jobs:
 
   release:
     name: Publish GitHub release
-    needs: build
+    needs: [prepare, package]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -138,6 +197,6 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.build.outputs.tag }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
           files: dist/**
           generate_release_notes: true

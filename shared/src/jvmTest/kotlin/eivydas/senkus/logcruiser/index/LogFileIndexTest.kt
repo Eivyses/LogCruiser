@@ -107,7 +107,7 @@ class LogFileIndexTest {
 
   @Test
   fun `test cancellation`() = runBlocking {
-    val content = "line content\n".repeat(200_000)
+    val content = "line content\n".repeat(2_000_000)
     val file = createTempFile(content)
     val index = LogFileIndex(file)
     val job = launch { index.build() }
