@@ -1,28 +1,60 @@
-This is a Kotlin Multiplatform project targeting Desktop (JVM).
+# LogCruiser
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+LogCruiser is a desktop log viewer for opening, searching, and filtering text log files. It's fast and modern. Written
+with Kotlin Multiplatform so it works on all operating systems.
 
-### Running the apps
+![LogCruiser UI](docs/images/logcruiser.png)
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
+## Features
 
-- Desktop app:
-  - Hot reload: `./gradlew :desktopApp:hotRun --auto`
-  - Standard run: `./gradlew :desktopApp:run`
+- Open local text and log files.
+- Search visible lines with a quick substring filter.
+- Add reusable `contains` and `not contains` filters.
+- Match multiple `contains` filters using either any or all semantics.
+- Track indexing and filtering progress, with cancellation while indexing.
+- Keep source line numbers visible while scrolling horizontally through long lines.
+- Switch between light and dark themes.
 
-### Running tests
+## TODO
 
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
+- JSON log support
+- More filter types
+- Line mapping rules (transform lines (trim, align, color))
+- Live log following
+- Plain log mapping to JSON and column creation by patterns
 
-- Desktop tests: `./gradlew :shared:jvmTest`
+## Installing
 
----
+Go to [Releases](https://github.com/Eivyses/LogCruiser/releases/latest) and download the latest version for your OS.
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+## Getting started
+
+LogCruiser is currently a desktop-only Kotlin application. A JDK 21 installation is required to build it.
+
+Run the application from the repository root:
+
+```shell
+./gradlew :desktopApp:run
+```
+
+For Compose hot reload during development:
+
+```shell
+./gradlew :desktopApp:hotRun --auto
+```
+
+Run the shared JVM tests with:
+
+```shell
+./gradlew :shared:jvmTest
+```
+
+## Project structure
+
+- [`shared`](./shared) contains the file indexing, line reading, filtering, and shared tests.
+- [`desktopApp`](./desktopApp) contains the Compose Desktop application and UI.
+
+## Contributing
+
+Bug reports, feature ideas, and pull requests are welcome. Please open an issue before larger changes so the direction
+can be discussed first.
