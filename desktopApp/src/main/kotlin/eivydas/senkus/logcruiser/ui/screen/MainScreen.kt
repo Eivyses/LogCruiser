@@ -10,13 +10,16 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.dp
+import eivydas.senkus.logcruiser.model.ProfileDef
 import eivydas.senkus.logcruiser.session.LogSessionHolder
 import eivydas.senkus.logcruiser.session.ViewerState
+import eivydas.senkus.logcruiser.storage.ProfileStore
 import eivydas.senkus.logcruiser.ui.component.*
 import eivydas.senkus.logcruiser.ui.find.FindBarController
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
+import java.util.UUID
 
 @Composable
 fun MainScreen(
@@ -25,6 +28,7 @@ fun MainScreen(
     modifier: Modifier = Modifier,
 ) {
   val session = remember { LogSessionHolder() }
+  val profileStore = remember { ProfileStore() }
   val scope = rememberCoroutineScope()
   val findController = remember { FindBarController(scope) }
 
@@ -36,6 +40,7 @@ fun MainScreen(
   val filters by session.filters.collectAsState()
   val includeMatchMode by session.includeMatchMode.collectAsState()
   val quickFilter by session.quickFilter.collectAsState()
+  val profiles by profileStore.profiles.collectAsState()
   val darkLightString = if (isDarkTheme) "light" else "dark"
 
   LaunchedEffect(state) { findController.onViewportChanged(state as? ViewerState.Ready) }
@@ -54,6 +59,36 @@ fun MainScreen(
               text = "Change theme to $darkLightString",
               onClick = onToggleTheme,
           ),
+      )
+  val profilesSidebarItems =
+      listOf(
+          SideBarItem(
+              id = "profiles",
+              title = "Profiles",
+              icon = { Text("P") },
+              content = {
+                ProfilesPanel(
+                    profiles = profiles,
+                    currentFilters = filters,
+                    currentIncludeMatchMode = includeMatchMode,
+                    onSave = { name ->
+                      profileStore.save(
+                          ProfileDef(
+                              id = UUID.randomUUID().toString(),
+                              name = name,
+                              filters = filters,
+                              includeMatchMode = includeMatchMode,
+                              createdAt = System.currentTimeMillis(),
+                          )
+                      )
+                    },
+                    onApply = { profile ->
+                      session.setFilters(profile.filters, profile.includeMatchMode)
+                    },
+                    onDelete = profileStore::delete,
+                )
+              },
+          )
       )
   val filterSidebarItems =
       listOf(
@@ -86,7 +121,7 @@ fun MainScreen(
             Row(modifier = Modifier.fillMaxSize()) {
               SideBar(
                   side = SideBarSide.Left,
-                  items = filterSidebarItems,
+                  items = profilesSidebarItems,
               )
               Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 if (state is ViewerState.Ready) {

@@ -1,5 +1,8 @@
 package eivydas.senkus.logcruiser.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class FilterDef(
     val id: String,
     val kind: FilterKind,
@@ -14,11 +17,13 @@ data class FilterDef(
   }
 }
 
+@Serializable
 enum class FilterKind {
   Include,
   Exclude,
 }
 
+@Serializable
 enum class FilterType {
   Substring,
 }

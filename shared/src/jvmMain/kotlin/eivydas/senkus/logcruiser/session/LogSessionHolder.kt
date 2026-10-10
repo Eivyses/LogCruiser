@@ -9,6 +9,9 @@ import eivydas.senkus.logcruiser.model.FilterDef
 import eivydas.senkus.logcruiser.model.FilterKind
 import eivydas.senkus.logcruiser.model.FilterType
 import eivydas.senkus.logcruiser.model.IncludeMatchMode
+import java.io.File
+import java.util.UUID
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,9 +28,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.File
-import java.util.UUID
-import kotlin.coroutines.CoroutineContext
 
 private const val QUICK_FILTER_ID = "quick-filter"
 
@@ -104,6 +104,11 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
     _includeMatchMode.value = mode
   }
 
+  fun setFilters(filters: List<FilterDef>, includeMatchMode: IncludeMatchMode) {
+    _filters.value = filters
+    _includeMatchMode.value = includeMatchMode
+  }
+
   fun setQuickFilter(filter: FilterDef?) {
     require(filter == null || filter.kind == FilterKind.Include) {
       "Quick filter must be an include filter"
@@ -114,14 +119,16 @@ class LogSessionHolder(coroutineContext: CoroutineContext = Dispatchers.Default)
   fun setQuickFilterText(value: String) {
     val trimmedValue = value.trim()
     setQuickFilter(
-        trimmedValue.takeIf { it.isNotEmpty() }?.let {
-          FilterDef(
-              id = QUICK_FILTER_ID,
-              kind = FilterKind.Include,
-              type = FilterType.Substring,
-              value = it,
-          )
-        }
+        trimmedValue
+            .takeIf { it.isNotEmpty() }
+            ?.let {
+              FilterDef(
+                  id = QUICK_FILTER_ID,
+                  kind = FilterKind.Include,
+                  type = FilterType.Substring,
+                  value = it,
+              )
+            }
     )
   }
 
