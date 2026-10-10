@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
@@ -12,8 +14,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import eivydas.senkus.logcruiser.index.FilteredLogFileIndex
@@ -33,22 +37,28 @@ fun LogViewport(
 
   Row(modifier = modifier.fillMaxSize()) {
     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-      Box(
-          modifier = Modifier.weight(1f).fillMaxWidth().horizontalScroll(horizontalScrollState),
-      ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxHeight(),
-        ) {
-          items(count = filteredIndex.lineCount, key = { filteredIndex.sourceLineIndexAt(it) }) {
-              filteredLineIndex ->
-            // The list position is filtered; reading still needs the corresponding source line.
-            val sourceLineIndex = filteredIndex.sourceLineIndexAt(filteredLineIndex)
-            LogLine(
-                lineNumber = sourceLineIndex + 1,
-                lineText = reader.readLine(filteredIndex.sourceIndex, sourceLineIndex),
-                horizontalScrollState = horizontalScrollState,
-            )
+      BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        val viewportWidth = maxWidth
+        Box(modifier = Modifier.fillMaxSize().horizontalScroll(horizontalScrollState)) {
+          SelectionContainer {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxHeight(),
+            ) {
+              items(
+                  count = filteredIndex.lineCount,
+                  key = { filteredIndex.sourceLineIndexAt(it) },
+              ) { filteredLineIndex ->
+                // The list position is filtered; reading still needs the corresponding source line.
+                val sourceLineIndex = filteredIndex.sourceLineIndexAt(filteredLineIndex)
+                LogLine(
+                    lineNumber = sourceLineIndex + 1,
+                    lineText = reader.readLine(filteredIndex.sourceIndex, sourceLineIndex),
+                    horizontalScrollState = horizontalScrollState,
+                    minimumTextWidth = (viewportWidth - LINE_NUMBER_WIDTH).coerceAtLeast(0.dp),
+                )
+              }
+            }
           }
         }
       }
@@ -75,13 +85,24 @@ private fun LogLine(
     lineNumber: Int,
     lineText: String,
     horizontalScrollState: ScrollState,
+    minimumTextWidth: Dp = 0.dp,
 ) {
   Box {
     Row {
       Spacer(modifier = Modifier.requiredWidth(LINE_NUMBER_WIDTH))
       Text(
           text = lineText,
-          modifier = Modifier.padding(start = 4.dp),
+          modifier =
+              Modifier.layout { measurable, constraints ->
+                    val minWidth =
+                        (minimumTextWidth.roundToPx() + horizontalScrollState.value).coerceIn(
+                            constraints.minWidth,
+                            constraints.maxWidth,
+                        )
+                    val placeable = measurable.measure(constraints.copy(minWidth = minWidth))
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                  }
+                  .padding(start = 4.dp),
           fontFamily = FontFamily.Monospace,
           maxLines = 1,
           softWrap = false,
@@ -96,13 +117,15 @@ private fun LogLine(
           modifier = Modifier.requiredWidth(LINE_NUMBER_WIDTH).padding(start = 4.dp, end = 12.dp),
           contentAlignment = Alignment.CenterEnd,
       ) {
-        Text(
-            text = "%8d".format(lineNumber),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            softWrap = false,
-        )
+        DisableSelection {
+          Text(
+              text = "%8d".format(lineNumber),
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              fontFamily = FontFamily.Monospace,
+              maxLines = 1,
+              softWrap = false,
+          )
+        }
       }
       VerticalDivider(
           color = MaterialTheme.colorScheme.outlineVariant,

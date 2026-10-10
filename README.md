@@ -5,6 +5,8 @@ with Kotlin Multiplatform so it works on all operating systems.
 
 ![LogCruiser UI](docs/images/logcruiser.png)
 
+Project is created with AI help.
+
 ## Features
 
 - Open local text and log files.
