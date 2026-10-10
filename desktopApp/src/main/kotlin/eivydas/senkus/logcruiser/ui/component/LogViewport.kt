@@ -11,18 +11,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import eivydas.senkus.logcruiser.find.LogMatch
 import eivydas.senkus.logcruiser.index.FilteredLogFileIndex
 import eivydas.senkus.logcruiser.index.OffsetLineReader
 import eivydas.senkus.logcruiser.ui.LogCruiserPreview
+import eivydas.senkus.logcruiser.ui.find.FindBarController
 
 private val LINE_NUMBER_WIDTH = 90.dp
 
@@ -31,9 +37,16 @@ fun LogViewport(
     filteredIndex: FilteredLogFileIndex,
     reader: OffsetLineReader,
     modifier: Modifier = Modifier,
+    findController: FindBarController? = null,
 ) {
   val horizontalScrollState = rememberScrollState()
   val listState = rememberLazyListState()
+
+  LaunchedEffect(findController?.currentIndex) {
+    val controller = findController ?: return@LaunchedEffect
+    val target = controller.matches?.getOrNull(controller.currentIndex)?.filteredLineIndex
+    if (target != null) listState.scrollToItem(target)
+  }
 
   Row(modifier = modifier.fillMaxSize()) {
     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -51,11 +64,23 @@ fun LogViewport(
               ) { filteredLineIndex ->
                 // The list position is filtered; reading still needs the corresponding source line.
                 val sourceLineIndex = filteredIndex.sourceLineIndexAt(filteredLineIndex)
+                val activeQuery =
+                    findController
+                        ?.takeIf { it.isOpen && it.matches != null }
+                        ?.query
+                        ?.trim()
+                        ?.ifBlank { null }
+                val currentMatch = findController?.let { controller ->
+                  controller.matches?.getOrNull(controller.currentIndex)
+                }
+                val lineMatch = currentMatch?.takeIf { it.sourceLineIndex == sourceLineIndex }
                 LogLine(
                     lineNumber = sourceLineIndex + 1,
                     lineText = reader.readLine(filteredIndex.sourceIndex, sourceLineIndex),
                     horizontalScrollState = horizontalScrollState,
                     minimumTextWidth = (viewportWidth - LINE_NUMBER_WIDTH).coerceAtLeast(0.dp),
+                    highlightQuery = activeQuery,
+                    currentMatch = lineMatch,
                 )
               }
             }
@@ -86,12 +111,42 @@ private fun LogLine(
     lineText: String,
     horizontalScrollState: ScrollState,
     minimumTextWidth: Dp = 0.dp,
+    highlightQuery: String? = null,
+    currentMatch: LogMatch? = null,
 ) {
+  val highlightBackground = MaterialTheme.colorScheme.secondaryContainer
+  val currentBackground = MaterialTheme.colorScheme.tertiaryContainer
+  val annotatedLine =
+      if (highlightQuery == null) {
+        AnnotatedString(lineText)
+      } else {
+        buildAnnotatedString {
+          var from = 0
+          while (from < lineText.length) {
+            val start = lineText.indexOf(highlightQuery, from, ignoreCase = true)
+            if (start < 0) {
+              append(lineText.substring(from))
+              break
+            }
+            append(lineText.substring(from, start))
+            pushStyle(
+                SpanStyle(
+                    background =
+                        if (currentMatch?.start == start) currentBackground else highlightBackground
+                )
+            )
+            append(lineText.substring(start, start + highlightQuery.length))
+            pop()
+            from = start + highlightQuery.length
+          }
+        }
+      }
+
   Box {
     Row {
       Spacer(modifier = Modifier.requiredWidth(LINE_NUMBER_WIDTH))
       Text(
-          text = lineText,
+          text = annotatedLine,
           modifier =
               Modifier.layout { measurable, constraints ->
                     val minWidth =
