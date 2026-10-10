@@ -1,17 +1,18 @@
 package eivydas.senkus.logcruiser
 
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import eivydas.senkus.logcruiser.storage.AppSettingsStore
 import eivydas.senkus.logcruiser.ui.screen.MainScreen
 
 fun main() = application {
-  var isDarkTheme by remember { mutableStateOf(true) }
+  val settingsStore = remember { AppSettingsStore() }
+  val isDarkTheme by settingsStore.isDarkTheme.collectAsState()
 
   Window(
       onCloseRequest = ::exitApplication,
@@ -24,7 +25,7 @@ fun main() = application {
   ) {
     MainScreen(
         isDarkTheme = isDarkTheme,
-        onToggleTheme = { isDarkTheme = !isDarkTheme },
+        onToggleTheme = { settingsStore.setDarkTheme(!isDarkTheme) },
     )
   }
 }
